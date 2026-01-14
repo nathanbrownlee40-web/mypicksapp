@@ -200,45 +200,127 @@ function removeTracker(id){
 }
 
 
-function drawBankrollChart(canvas, points){
+function fmtBankrollLabel(t){
+  // Prefer explicit match date, else fall back to update time
+  const raw = (t && (t.date || t.DateUTC || t.dateUTC)) || "";
+  let d = null;
+  if(raw){
+    // try ISO / "YYYY-MM-DD HH:MM"
+    const s = String(raw).replace(" UTC","").replace("Z","");
+    const try1 = new Date(s);
+    if(!isNaN(try1)) d = try1;
+  }
+  if(!d){
+    const ts = (t && (t.updatedAt || t.createdAt)) || 0;
+    const try2 = new Date(ts);
+    if(!isNaN(try2)) d = try2;
+  }
+  if(!d) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function drawBankrollChart(canvas, points, labels){
   if(!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
-  ctx.clearRect(0,0,w,h);
+
+  // ensure crisp lines on high-DPI screens
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || w;
+  const cssH = canvas.clientHeight || h;
+  if(canvas.width !== Math.round(cssW*dpr) || canvas.height !== Math.round(cssH*dpr)){
+    canvas.width = Math.round(cssW*dpr);
+    canvas.height = Math.round(cssH*dpr);
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  ctx.clearRect(0,0,cssW,cssH);
 
   if(!points || points.length < 2){
-    ctx.globalAlpha = 0.7;
-    ctx.fillText("No settled bets yet", 10, 20);
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.font = "12px ui-sans-serif, system-ui";
+    ctx.fillText("No settled bets yet", 10, 18);
     ctx.globalAlpha = 1;
     return;
   }
 
+  // Normalize labels
+  const labs = Array.isArray(labels) && labels.length === points.length ? labels : points.map((_,i)=> String(i));
+
   const min = Math.min(...points);
   const max = Math.max(...points);
-  const pad = 10;
+  const padL = 38, padR = 12, padT = 14, padB = 26;
   const rng = (max-min) || 1;
 
-  // axes baseline
-  ctx.globalAlpha = 0.25;
-  ctx.beginPath();
-  ctx.moveTo(pad, h-pad);
-  ctx.lineTo(w-pad, h-pad);
-  ctx.stroke();
+  // background grid (more visible)
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,.10)";
   ctx.globalAlpha = 1;
+  const gridN = 4;
+  for(let i=0;i<=gridN;i++){
+    const y = padT + i*((cssH-padT-padB)/gridN);
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(cssW-padR, y);
+    ctx.stroke();
+  }
+
+  // y-axis labels (min/mid/max)
+  ctx.fillStyle = "rgba(255,255,255,.70)";
+  ctx.font = "11px ui-sans-serif, system-ui";
+  const yVals = [max, (max+min)/2, min];
+  yVals.forEach((v, idx)=>{
+    const y = padT + idx*((cssH-padT-padB)/2);
+    ctx.fillText(money(v), 6, y+4);
+  });
+
+  // line
+  const xStep = (cssW-padL-padR) / (points.length-1);
+  const yScale = (cssH-padT-padB) / rng;
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(34,197,94,.95)"; // bright green
+  ctx.shadowColor = "rgba(34,197,94,.35)";
+  ctx.shadowBlur = 10;
 
   ctx.beginPath();
   for(let i=0;i<points.length;i++){
-    const x = pad + (i*( (w-2*pad) / (points.length-1) ));
-    const y = pad + ((max-points[i]) * ((h-2*pad)/rng));
+    const x = padL + i*xStep;
+    const y = padT + (max-points[i]) * yScale;
     if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
 
-  // last point label
+  // points
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(34,197,94,.95)";
+  for(let i=0;i<points.length;i++){
+    const x = padL + i*xStep;
+    const y = padT + (max-points[i]) * yScale;
+    ctx.beginPath();
+    ctx.arc(x,y,2.3,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // x-axis labels (dates) - show up to 6 labels
+  ctx.fillStyle = "rgba(255,255,255,.70)";
+  ctx.font = "10px ui-sans-serif, system-ui";
+  const maxTicks = 6;
+  const step = Math.max(1, Math.floor((points.length-1) / (maxTicks-1)));
+  for(let i=0;i<points.length;i+=step){
+    const x = padL + i*xStep;
+    const label = labs[i] || "";
+    const txt = String(label);
+    const tw = ctx.measureText(txt).width;
+    ctx.fillText(txt, x - tw/2, cssH - 10);
+  }
+
+  // last value label
   const last = points[points.length-1];
-  ctx.globalAlpha = 0.8;
-  ctx.fillText((money(last)), w-pad-40, pad+12);
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(255,255,255,.90)";
+  ctx.font = "12px ui-sans-serif, system-ui";
+  ctx.fillText(money(last), cssW-padR-70, padT+10);
 }
 
 function betProfit(t){
@@ -342,10 +424,25 @@ function drawLeagueBarChart(canvas, items){
 function trackerFinance(){
   const arr = state.tracker || [];
   const decided = arr.filter(x=>x.status==="won" || x.status==="lost" || x.status==="void");
+
   const staked = decided.reduce((s,t)=> s + (((typeof t.stake==="number" && isFinite(t.stake))?t.stake:0)), 0);
   const profit = decided.reduce((s,t)=> s + betProfit(t), 0);
   const roi = staked ? (profit / staked) : 0;
-  return { profit, staked, roi, decidedCount: decided.length };
+
+  const wonArr = decided.filter(x=>x.status==="won").map(x=>x.odds).filter(o=> typeof o==="number" && isFinite(o) && o>0);
+  const lostArr = decided.filter(x=>x.status==="lost").map(x=>x.odds).filter(o=> typeof o==="number" && isFinite(o) && o>0);
+
+  const avg = (a)=> a.length ? (a.reduce((s,v)=>s+v,0)/a.length) : 0;
+
+  return {
+    profit,
+    staked,
+    roi,
+    decidedCount: decided.length,
+    avgOddsWon: avg(wonArr),
+    avgOddsLost: avg(lostArr),
+    avgOddsAll: avg([...wonArr, ...lostArr])
+  };
 }
 
 function trackerStats(){
@@ -970,14 +1067,25 @@ function renderTracker(){
   const stats = document.createElement("div");
   stats.className = "trackerStats";
   stats.innerHTML = `
-    <div class="tsRow"><span>Total</span><b>${st.total}</b></div>
-    <div class="tsRow"><span>Pending</span><b>${st.pending}</b></div>
-    <div class="tsRow"><span>Won</span><b>${st.won}</b></div>
-    <div class="tsRow"><span>Lost</span><b>${st.lost}</b></div>
-    <div class="tsRow"><span>Win rate</span><b>${st.winp}%</b></div>
-    <div class="tsRow"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
-    <div class="tsRow"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
-  `;
+  <div class="tsRow"><span>Total</span><b>${st.total}</b></div>
+
+  <div class="tsMini">
+    <div class="r"><span>Won</span><b>${st.won}</b></div>
+    <div class="r"><span>Lost</span><b>${st.lost}</b></div>
+    <div class="r"><span>Pending</span><b>${st.pending}</b></div>
+    <div class="r"><span>Void</span><b>${st.voided}</b></div>
+    <div class="r"><span>Win rate</span><b>${st.winp}%</b></div>
+  </div>
+
+  <div class="tsRow"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
+  <div class="tsRow"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
+
+  <div class="tsMini">
+    <div class="r"><span>Avg odds (W)</span><b>${fin.avgOddsWon ? fin.avgOddsWon.toFixed(2) : "—"}</b></div>
+    <div class="r"><span>Avg odds (L)</span><b>${fin.avgOddsLost ? fin.avgOddsLost.toFixed(2) : "—"}</b></div>
+    <div class="r"><span>Avg odds (All)</span><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
+  </div>
+`;
 
   const bankroll = document.createElement("div");
   bankroll.className = "trackerBankroll";
@@ -1098,8 +1206,9 @@ header.appendChild(chartWrap);
       .sort((a,b)=>(a.updatedAt||a.createdAt||0)-(b.updatedAt||b.createdAt||0));
     let brv = br.start;
     const pts = [brv];
-    decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); });
-    drawBankrollChart($("brChart"), pts);
+    const labs = ["Start"];
+    decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); labs.push(fmtBankrollLabel(t)); });
+    drawBankrollChart($("brChart"), pts, labs);
   }catch(e){}
 
   // league charts
@@ -1357,148 +1466,3 @@ function filterTracker(arr, f){
     return true;
   });
 }
-/***********************
- * Import CSV (file) or Google Sheet (CSV export)
- ***********************/
-(function setupCsvImport(){
-  const btn = $("importCsvBtn");
-  const input = $("csvFileInput");
-  if(!btn || !input) return;
-
-  // Simple CSV parser with quote support
-  function parseCsv(text){
-    const rows = [];
-    let row = [];
-    let cur = "";
-    let inQuotes = false;
-
-    for(let i=0;i<text.length;i++){
-      const ch = text[i];
-      const next = text[i+1];
-
-      if(ch === '"' && inQuotes && next === '"'){
-        cur += '"';
-        i++;
-        continue;
-      }
-      if(ch === '"'){
-        inQuotes = !inQuotes;
-        continue;
-      }
-      if(ch === "," && !inQuotes){
-        row.push(cur);
-        cur = "";
-        continue;
-      }
-      if((ch === "\n" || ch === "\r") && !inQuotes){
-        if(ch === "\r" && next === "\n") i++;
-        row.push(cur);
-        cur = "";
-        if(row.some(c => String(c).trim() !== "")) rows.push(row);
-        row = [];
-        continue;
-      }
-      cur += ch;
-    }
-    row.push(cur);
-    if(row.some(c => String(c).trim() !== "")) rows.push(row);
-    return rows;
-  }
-
-  function sheetUrlToCsv(url){
-    // If already an export CSV link, keep it
-    if(url.includes("export?format=csv")) return url;
-
-    // Normal share link: https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0
-    const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if(!m) return url;
-
-    const sheetId = m[1];
-    const gidMatch = url.match(/[?#&]gid=([0-9]+)/);
-    const gid = gidMatch ? gidMatch[1] : "0";
-    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-  }
-
-  function toNumberMaybe(v){
-    const s = String(v ?? "").trim();
-    if(s === "") return "";
-    const n = Number(s.replace(/[%£$,]/g,""));
-    return Number.isFinite(n) && String(n) !== "NaN" ? n : s;
-  }
-
-  function importCsvText(csvText){
-    const grid = parseCsv(String(csvText || "").trim());
-    if(!grid.length){
-      alert("CSV is empty.");
-      return;
-    }
-    const headers = grid[0].map(h => String(h).trim()).filter(Boolean);
-    const body = grid.slice(1).filter(r => r.some(c => String(c).trim() !== ""));
-    if(!headers.length || !body.length){
-      alert("CSV has no usable rows.");
-      return;
-    }
-
-    const rows = body.map(r=>{
-      const o = {};
-      headers.forEach((h, i)=> o[h] = toNumberMaybe(r[i]));
-      return o;
-    });
-
-    // Try to detect probability column
-    const probCol = headers.find(h => /p\(/i.test(h) || /prob/i.test(h)) || null;
-
-    const dataset = {
-      slug: "imported",
-      name: "Imported",
-      columns: headers,
-      rows,
-      probCol
-    };
-
-    const existingIdx = state.datasets.findIndex(d => d.slug === "imported");
-    if(existingIdx >= 0){
-      state.datasets[existingIdx] = dataset;
-    }else{
-      state.datasets.splice(Math.max(0, state.datasets.length-2), 0, dataset); // insert before tracker/accas
-    }
-
-    buildTabs();
-    loadDataset("imported");
-    alert(`Imported ${rows.length} rows ✅`);
-  }
-
-  // Click import: choose file or sheet
-  btn.addEventListener("click", async ()=>{
-    const choice = prompt("Type:\n1 = import from CSV file\n2 = import from Google Sheet link (must be public)\n\nEnter 1 or 2:");
-    if(choice === "1"){
-      input.click();
-      return;
-    }
-    if(choice === "2"){
-      const url = prompt("Paste Google Sheet link (or direct CSV export link):");
-      if(!url) return;
-      try{
-        const csvUrl = sheetUrlToCsv(url);
-        const res = await fetch(csvUrl, {cache:"no-store"});
-        if(!res.ok) throw new Error(`Fetch failed (${res.status})`);
-        const text = await res.text();
-        importCsvText(text);
-      }catch(err){
-        console.error(err);
-        alert("Failed to fetch.\n\nMake sure the sheet is public (Anyone with link) or Published to web.\n\n" + err.message);
-      }
-      return;
-    }
-  });
-
-  // File input handler
-  input.addEventListener("change", (e)=>{
-    const file = e.target.files && e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ()=> importCsvText(reader.result);
-    reader.readAsText(file);
-    e.target.value = "";
-  });
-})();
