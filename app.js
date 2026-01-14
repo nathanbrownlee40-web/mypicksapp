@@ -1357,3 +1357,67 @@ function filterTracker(arr, f){
     return true;
   });
 }
+/***********************
+ * CSV / Google Sheet Import
+ ***********************/
+
+// Hook Import button to file picker
+$("importCsvBtn")?.addEventListener("click", () => {
+  $("csvFileInput").click();
+});
+
+// Handle local CSV upload
+$("csvFileInput")?.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => importCSVText(reader.result);
+  reader.readAsText(file);
+});
+
+// Convert Google Sheet link → CSV
+function sheetUrlToCsv(url){
+  try{
+    const u = new URL(url);
+    if (!u.hostname.includes("docs.google.com")) return url;
+
+    const id = u.pathname.split("/d/")[1]?.split("/")[0];
+    const gid = u.searchParams.get("gid") || "0";
+    if (!id) return url;
+
+    return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  }catch{
+    return url;
+  }
+}
+
+// Import CSV text
+function importCSVText(text){
+  const rows = text.trim().split(/\r?\n/).map(r => r.split(","));
+  const headers = rows.shift().map(h => h.trim());
+
+  const imported = rows.map(r => {
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = r[i]);
+    return obj;
+  });
+
+  injectImportedRows(imported);
+}
+
+// Map CSV rows into your table format
+function injectImportedRows(rows){
+  if (!rows.length) return alert("CSV is empty");
+
+  const dataset = {
+    name: "Imported CSV",
+    slug: "imported",
+    columns: Object.keys(rows[0]),
+    rows: rows
+  };
+
+  DATASETS.push(dataset);
+  renderTabs();
+  selectDataset(dataset.slug);
+}
