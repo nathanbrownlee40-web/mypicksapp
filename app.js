@@ -1358,171 +1358,147 @@ function filterTracker(arr, f){
   });
 }
 /***********************
- * CSV Import (File OR Google Sheet link)
+ * Import CSV (file) or Google Sheet (CSV export)
  ***********************/
+(function setupCsvImport(){
+  const btn = $("importCsvBtn");
+  const input = $("csvFileInput");
+  if(!btn || !input) return;
 
-// Helper: safe get element
-const $$ = (id) => document.getElementById(id);
+  // Simple CSV parser with quote support
+  function parseCsv(text){
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQuotes = false;
 
-// Button: choose file OR paste Google Sheet link
-$$("importCsvBtn")?.addEventListener("click", async () => {
-  const choice = prompt(
-    "Type:\n1 = import from CSV file\n2 = import from Google Sheet link (published)\n\nEnter 1 or 2:"
-  );
+    for(let i=0;i<text.length;i++){
+      const ch = text[i];
+      const next = text[i+1];
 
-  if (choice === "1") {
-    $$("csvFileInput")?.click();
-    return;
+      if(ch === '"' && inQuotes && next === '"'){
+        cur += '"';
+        i++;
+        continue;
+      }
+      if(ch === '"'){
+        inQuotes = !inQuotes;
+        continue;
+      }
+      if(ch === "," && !inQuotes){
+        row.push(cur);
+        cur = "";
+        continue;
+      }
+      if((ch === "\n" || ch === "\r") && !inQuotes){
+        if(ch === "\r" && next === "\n") i++;
+        row.push(cur);
+        cur = "";
+        if(row.some(c => String(c).trim() !== "")) rows.push(row);
+        row = [];
+        continue;
+      }
+      cur += ch;
+    }
+    row.push(cur);
+    if(row.some(c => String(c).trim() !== "")) rows.push(row);
+    return rows;
   }
 
-  if (choice === "2") {
-    const url = prompt("Paste your Google Sheet link (or published CSV link):");
-    if (!url) return;
+  function sheetUrlToCsv(url){
+    // If already an export CSV link, keep it
+    if(url.includes("export?format=csv")) return url;
 
-    try {
-      const csvUrl = sheetUrlToCsv(url);
-      const res = await fetch(csvUrl, { cache: "no-store" });
-      if (!res.ok) throw new Error("Fetch failed: " + res.status);
-      const text = await res.text();
-      importCSVText(text);
-    } catch (e) {
-      alert("Could not import from Google Sheet.\n\n" + e.message);
-      console.error(e);
-    }
-    return;
+    // Normal share link: https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0
+    const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if(!m) return url;
+
+    const sheetId = m[1];
+    const gidMatch = url.match(/[?#&]gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : "0";
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
   }
 
-  alert("Cancelled.");
-});
-
-// File input handler
-$$("csvFileInput")?.addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => importCSVText(String(reader.result || ""));
-  reader.readAsText(file);
-
-  // so selecting same file again still triggers change
-  e.target.value = "";
-});
-
-// Convert common Google Sheet links to a CSV export link
-function sheetUrlToCsv(url) {
-  // Already a CSV export link?
-  if (url.includes("export?format=csv")) return url;
-
-  // Normal share link: https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0
-  const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (!m) return url; // maybe user pasted a published CSV already
-
-  const sheetId = m[1];
-
-  // If the user included gid=12345, keep it
-  const gidMatch = url.match(/[?#&]gid=([0-9]+)/);
-  const gid = gidMatch ? gidMatch[1] : "0";
-
-  // This works when the sheet is publicly accessible (or published)
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-}
-
-// Parse CSV into rows (simple CSV parser that handles quotes)
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cur = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const next = text[i + 1];
-
-    if (ch === '"' && inQuotes && next === '"') {
-      cur += '"'; // escaped quote
-      i++;
-      continue;
-    }
-
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (ch === "," && !inQuotes) {
-      row.push(cur);
-      cur = "";
-      continue;
-    }
-
-    if ((ch === "\n" || ch === "\r") && !inQuotes) {
-      if (ch === "\r" && next === "\n") i++;
-      row.push(cur);
-      cur = "";
-      if (row.some((c) => c.trim() !== "")) rows.push(row);
-      row = [];
-      continue;
-    }
-
-    cur += ch;
+  function toNumberMaybe(v){
+    const s = String(v ?? "").trim();
+    if(s === "") return "";
+    const n = Number(s.replace(/[%£$,]/g,""));
+    return Number.isFinite(n) && String(n) !== "NaN" ? n : s;
   }
 
-  row.push(cur);
-  if (row.some((c) => c.trim() !== "")) rows.push(row);
+  function importCsvText(csvText){
+    const grid = parseCsv(String(csvText || "").trim());
+    if(!grid.length){
+      alert("CSV is empty.");
+      return;
+    }
+    const headers = grid[0].map(h => String(h).trim()).filter(Boolean);
+    const body = grid.slice(1).filter(r => r.some(c => String(c).trim() !== ""));
+    if(!headers.length || !body.length){
+      alert("CSV has no usable rows.");
+      return;
+    }
 
-  return rows;
-}
+    const rows = body.map(r=>{
+      const o = {};
+      headers.forEach((h, i)=> o[h] = toNumberMaybe(r[i]));
+      return o;
+    });
 
-// MAIN: import CSV text and apply it to the CURRENT dashboard
-function importCSVText(csvText) {
-  const grid = parseCsv(csvText.trim());
-  if (!grid.length) {
-    alert("CSV is empty.");
-    return;
+    // Try to detect probability column
+    const probCol = headers.find(h => /p\(/i.test(h) || /prob/i.test(h)) || null;
+
+    const dataset = {
+      slug: "imported",
+      name: "Imported",
+      columns: headers,
+      rows,
+      probCol
+    };
+
+    const existingIdx = state.datasets.findIndex(d => d.slug === "imported");
+    if(existingIdx >= 0){
+      state.datasets[existingIdx] = dataset;
+    }else{
+      state.datasets.splice(Math.max(0, state.datasets.length-2), 0, dataset); // insert before tracker/accas
+    }
+
+    buildTabs();
+    loadDataset("imported");
+    alert(`Imported ${rows.length} rows ✅`);
   }
 
-  const headers = grid[0].map((h) => h.trim());
-  const body = grid.slice(1);
-
-  if (body.length === 0) {
-    alert("CSV has headers but no rows.");
-    return;
-  }
-
-  // Convert each row into an object using headers
-  const importedRows = body.map((r) => {
-    const obj = {};
-    headers.forEach((h, i) => (obj[h] = (r[i] ?? "").trim()));
-    return obj;
+  // Click import: choose file or sheet
+  btn.addEventListener("click", async ()=>{
+    const choice = prompt("Type:\n1 = import from CSV file\n2 = import from Google Sheet link (must be public)\n\nEnter 1 or 2:");
+    if(choice === "1"){
+      input.click();
+      return;
+    }
+    if(choice === "2"){
+      const url = prompt("Paste Google Sheet link (or direct CSV export link):");
+      if(!url) return;
+      try{
+        const csvUrl = sheetUrlToCsv(url);
+        const res = await fetch(csvUrl, {cache:"no-store"});
+        if(!res.ok) throw new Error(`Fetch failed (${res.status})`);
+        const text = await res.text();
+        importCsvText(text);
+      }catch(err){
+        console.error(err);
+        alert("Failed to fetch.\n\nMake sure the sheet is public (Anyone with link) or Published to web.\n\n" + err.message);
+      }
+      return;
+    }
   });
 
-  // IMPORTANT: do NOT wipe datasets if parse fails
-  if (!importedRows.length) {
-    alert("No usable rows found in CSV.");
-    return;
-  }
-
-  // Apply to whatever your app calls the “current dataset”
-  // ---- YOU MAY NEED TO CHANGE THESE 2 LINES to match your code ----
-  // Option A: if you have state.currentRows or state.rows:
-  // state.rows = importedRows;
-
-  // Option B (common in your app): overwrite current dataset rows:
-  if (window.state && state.current && state.current.rows) {
-    state.current.rows = importedRows;
-  } else if (window.state && typeof state.activeDatasetIndex === "number") {
-    state.datasets[state.activeDatasetIndex].rows = importedRows;
-  } else {
-    // fallback: try common names
-    if (window.state && state.datasets && state.datasets.length) {
-      state.datasets[0].rows = importedRows;
-    }
-  }
-
-  // Re-render (YOU MAY NEED to change to your app’s render function name)
-  if (typeof render === "function") render();
-  if (typeof refresh === "function") refresh();
-  if (typeof draw === "function") draw();
-
-  alert(`Imported ${importedRows.length} rows ✅`);
-  }
+  // File input handler
+  input.addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=> importCsvText(reader.result);
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+})();
