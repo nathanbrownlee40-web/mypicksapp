@@ -1070,12 +1070,22 @@ function renderTracker(){
   const stats = document.createElement("div");
   stats.className = "trackerStats";
   stats.innerHTML = `
-  <div class="tsSummary">
-    <div class="tsMetric"><span>Total</span><b>${st.total}</b></div>
-    <div class="tsMetric"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
-    <div class="tsMetric"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
-    <div class="tsMetric"><span>Win rate</span><b>${st.winp}%</b></div>
+  <div class="trackerSummaryCompact">
+    <div class="tsTop">
+      <div><span>Total</span><b>${st.total}</b></div>
+      <div><span>P/L</span><b>${fin.profit >= 0 ? "+" : ""}${fin.profit.toFixed(2)}</b></div>
+      <div><span>ROI</span><b>${fin.roi.toFixed(1)}%</b></div>
+      <div><span>Win %</span><b>${st.winRate}%</b></div>
+    </div>
+
+    <div class="tsBottom">
+      <div>Won <b>${st.won}</b></div>
+      <div>Lost <b>${st.lost}</b></div>
+      <div>Void <b>${st.void}</b></div>
+      <div>Pending <b>${st.pending}</b></div>
+    </div>
   </div>
+`;
 
   <table class="tsTable" role="table">
     <tr>
