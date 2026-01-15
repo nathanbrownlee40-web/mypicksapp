@@ -596,46 +596,36 @@ canvas{ image-rendering:auto; }
 }
 
 
-
 /* =========================
-   Mobile-first Compact defaults
+   Tracker-only mobile fit (does NOT change dashboards)
    ========================= */
 
 @media (max-width: 640px){
-  .container{ padding: 0 8px; }
-  .topbar{ padding: 12px 12px; }
-  .actions{ gap: 8px; }
-  .btn{ padding: 9px 11px; border-radius: 12px; }
-  .tableMeta{ flex-wrap: wrap; }
-  .tableMeta > div{ min-width: 0; }
-}
+  /* Prevent sideways scroll only in Tracker view */
+  body.trackerView{ overflow-x: hidden; }
 
-/* True phone-sized compact mode */
-body.compact{
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-body.compact .container{ max-width: 100%; padding: 0 8px; }
-body.compact .topbar{ flex-wrap: wrap; }
-body.compact .actions{ width: 100%; justify-content: flex-start; }
-body.compact .controls{ grid-template-columns: 1fr !important; }
-body.compact .span-2{ grid-column: auto !important; }
+  /* Slightly tighter padding only when viewing tracker */
+  body.trackerView .container{ padding: 0 8px; }
 
-body.compact .trackerHeader{ grid-template-columns: 1fr !important; gap: 10px; }
-body.compact .trackerStats{
-  grid-template-columns: 1fr !important;
-  gap: 6px;
-  padding: 10px;
-}
-body.compact .trackerBankroll,
-body.compact .trackerFilters{
-  padding: 10px;
-}
-body.compact .tsRow{ font-size: 12px; }
+  /* Stack tracker header/stats/filters neatly */
+  body.trackerView .trackerHeader{ grid-template-columns: 1fr !important; gap: 10px; }
+  body.trackerView .trackerStats{
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+    padding: 10px;
+  }
+  body.trackerView .trackerBankroll,
+  body.trackerView .trackerFilters,
+  body.trackerView .trackerChart{
+    padding: 10px;
+  }
 
-body.compact .trackerChart canvas{
-  width: 100% !important;
-  height: 170px !important;
-}
+  body.trackerView .tsRow{ font-size: 12px; }
 
-body.compact table{ min-width: 0 !important; }
+  /* Charts: fit screen */
+  body.trackerView canvas{ max-width: 100% !important; }
+  body.trackerView .trackerChart canvas{
+    width: 100% !important;
+    height: 170px !important;
+  }
+}
