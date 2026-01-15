@@ -63,7 +63,7 @@ function loadTrackerFilter(){
     const v = raw ? JSON.parse(raw) : null;
     if(v && typeof v === "object") return v;
   }catch(e){}
-  return { status: "all", range: "all", league: "all", q: "" };
+  return { status: "all", market: "all", range: "all", league: "all", q: "" };
 }
 function saveTrackerFilter(obj){
   try{ localStorage.setItem(TRACKER_FILTER_KEY, JSON.stringify(obj)); }catch(e){}
@@ -200,45 +200,130 @@ function removeTracker(id){
 }
 
 
-function drawBankrollChart(canvas, points){
+function fmtBankrollLabel(t){
+  // Prefer explicit match date, else fall back to update time
+  const raw = (t && (t.date || t.DateUTC || t.dateUTC)) || "";
+  let d = null;
+  if(raw){
+    // try ISO / "YYYY-MM-DD HH:MM"
+    const s = String(raw).replace(" UTC","").replace("Z","");
+    const try1 = new Date(s);
+    if(!isNaN(try1)) d = try1;
+  }
+  if(!d){
+    const ts = (t && (t.updatedAt || t.createdAt)) || 0;
+    const try2 = new Date(ts);
+    if(!isNaN(try2)) d = try2;
+  }
+  if(!d) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function drawBankrollChart(canvas, points, labels, opts={}){
   if(!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
-  ctx.clearRect(0,0,w,h);
+
+  // ensure crisp lines on high-DPI screens
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || w;
+  const cssH = canvas.clientHeight || h;
+  if(canvas.width !== Math.round(cssW*dpr) || canvas.height !== Math.round(cssH*dpr)){
+    canvas.width = Math.round(cssW*dpr);
+    canvas.height = Math.round(cssH*dpr);
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  ctx.clearRect(0,0,cssW,cssH);
 
   if(!points || points.length < 2){
-    ctx.globalAlpha = 0.7;
-    ctx.fillText("No settled bets yet", 10, 20);
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.font = "12px ui-sans-serif, system-ui";
+    ctx.fillText("No settled bets yet", 10, 18);
     ctx.globalAlpha = 1;
     return;
   }
 
+  // Normalize labels
+  const labs = Array.isArray(labels) && labels.length === points.length ? labels : points.map((_,i)=> String(i));
+  const color = opts.color || "rgba(34,197,94,.95)";
+  const shadowColor = opts.shadowColor || color.replace(/rgba\(([^)]+),\s*([0-9.]+)\)/, "rgba($1,0.35)");
+  const valueFn = (typeof opts.valueFn === "function") ? opts.valueFn : money;
+
   const min = Math.min(...points);
   const max = Math.max(...points);
-  const pad = 10;
+  const padL = 38, padR = 12, padT = 14, padB = 26;
   const rng = (max-min) || 1;
 
-  // axes baseline
-  ctx.globalAlpha = 0.25;
-  ctx.beginPath();
-  ctx.moveTo(pad, h-pad);
-  ctx.lineTo(w-pad, h-pad);
-  ctx.stroke();
+  // background grid (more visible)
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,.10)";
   ctx.globalAlpha = 1;
+  const gridN = 4;
+  for(let i=0;i<=gridN;i++){
+    const y = padT + i*((cssH-padT-padB)/gridN);
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(cssW-padR, y);
+    ctx.stroke();
+  }
+
+  // y-axis labels (min/mid/max)
+  ctx.fillStyle = "rgba(255,255,255,.70)";
+  ctx.font = "11px ui-sans-serif, system-ui";
+  const yVals = [max, (max+min)/2, min];
+  yVals.forEach((v, idx)=>{
+    const y = padT + idx*((cssH-padT-padB)/2);
+    ctx.fillText(valueFn(v), 6, y+4);
+  });
+
+  // line
+  const xStep = (cssW-padL-padR) / (points.length-1);
+  const yScale = (cssH-padT-padB) / rng;
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = color;
+  ctx.shadowColor = shadowColor;
+  ctx.shadowBlur = 10;
 
   ctx.beginPath();
   for(let i=0;i<points.length;i++){
-    const x = pad + (i*( (w-2*pad) / (points.length-1) ));
-    const y = pad + ((max-points[i]) * ((h-2*pad)/rng));
+    const x = padL + i*xStep;
+    const y = padT + (max-points[i]) * yScale;
     if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
 
-  // last point label
+  // points
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = color;
+  for(let i=0;i<points.length;i++){
+    const x = padL + i*xStep;
+    const y = padT + (max-points[i]) * yScale;
+    ctx.beginPath();
+    ctx.arc(x,y,2.3,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // x-axis labels (dates) - show up to 6 labels
+  ctx.fillStyle = "rgba(255,255,255,.70)";
+  ctx.font = "10px ui-sans-serif, system-ui";
+  const maxTicks = 6;
+  const step = Math.max(1, Math.floor((points.length-1) / (maxTicks-1)));
+  for(let i=0;i<points.length;i+=step){
+    const x = padL + i*xStep;
+    const label = labs[i] || "";
+    const txt = String(label);
+    const tw = ctx.measureText(txt).width;
+    ctx.fillText(txt, x - tw/2, cssH - 10);
+  }
+
+  // last value label
   const last = points[points.length-1];
-  ctx.globalAlpha = 0.8;
-  ctx.fillText((money(last)), w-pad-40, pad+12);
-  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(255,255,255,.90)";
+  ctx.font = "12px ui-sans-serif, system-ui";
+  ctx.fillText(valueFn(last), cssW-padR-70, padT+10);
 }
 
 function betProfit(t){
@@ -342,10 +427,25 @@ function drawLeagueBarChart(canvas, items){
 function trackerFinance(){
   const arr = state.tracker || [];
   const decided = arr.filter(x=>x.status==="won" || x.status==="lost" || x.status==="void");
+
   const staked = decided.reduce((s,t)=> s + (((typeof t.stake==="number" && isFinite(t.stake))?t.stake:0)), 0);
   const profit = decided.reduce((s,t)=> s + betProfit(t), 0);
   const roi = staked ? (profit / staked) : 0;
-  return { profit, staked, roi, decidedCount: decided.length };
+
+  const wonArr = decided.filter(x=>x.status==="won").map(x=>x.odds).filter(o=> typeof o==="number" && isFinite(o) && o>0);
+  const lostArr = decided.filter(x=>x.status==="lost").map(x=>x.odds).filter(o=> typeof o==="number" && isFinite(o) && o>0);
+
+  const avg = (a)=> a.length ? (a.reduce((s,v)=>s+v,0)/a.length) : 0;
+
+  return {
+    profit,
+    staked,
+    roi,
+    decidedCount: decided.length,
+    avgOddsWon: avg(wonArr),
+    avgOddsLost: avg(lostArr),
+    avgOddsAll: avg([...wonArr, ...lostArr])
+  };
 }
 
 function trackerStats(){
@@ -970,14 +1070,32 @@ function renderTracker(){
   const stats = document.createElement("div");
   stats.className = "trackerStats";
   stats.innerHTML = `
-    <div class="tsRow"><span>Total</span><b>${st.total}</b></div>
-    <div class="tsRow"><span>Pending</span><b>${st.pending}</b></div>
-    <div class="tsRow"><span>Won</span><b>${st.won}</b></div>
-    <div class="tsRow"><span>Lost</span><b>${st.lost}</b></div>
-    <div class="tsRow"><span>Win rate</span><b>${st.winp}%</b></div>
-    <div class="tsRow"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
-    <div class="tsRow"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
-  `;
+  <div class="tsSummary">
+    <div class="tsMetric"><span>Total</span><b>${st.total}</b></div>
+    <div class="tsMetric"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
+    <div class="tsMetric"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
+    <div class="tsMetric"><span>Win rate</span><b>${st.winp}%</b></div>
+  </div>
+
+  <table class="tsTable" role="table">
+    <tr>
+      <td>Won</td><td><b>${st.won}</b></td>
+      <td>Avg odds (W)</td><td><b>${fin.avgOddsWon ? fin.avgOddsWon.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Lost</td><td><b>${st.lost}</b></td>
+      <td>Avg odds (L)</td><td><b>${fin.avgOddsLost ? fin.avgOddsLost.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Pending</td><td><b>${st.pending}</b></td>
+      <td>Avg odds (All)</td><td><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Void</td><td><b>${st.voided}</b></td>
+      <td></td><td></td>
+    </tr>
+  </table>
+`;
 
   const bankroll = document.createElement("div");
   bankroll.className = "trackerBankroll";
@@ -998,8 +1116,15 @@ function renderTracker(){
   const chartWrap = document.createElement("div");
   chartWrap.className = "trackerChart";
   chartWrap.innerHTML = `
-    <div class="tcTitle">Bankroll chart</div>
+    <div class="tcTitle">Bankroll</div>
+    <div class="tcSub">Total</div>
     <canvas id="brChart" width="320" height="120"></canvas>
+
+    <div class="tcSub" style="margin-top:10px;">Over 2.5</div>
+    <canvas id="brChartO25" width="320" height="120"></canvas>
+
+    <div class="tcSub" style="margin-top:10px;">BTTS Yes</div>
+    <canvas id="brChartBTTS" width="320" height="120"></canvas>
   `;
 
   const f = loadTrackerFilter();
@@ -1007,6 +1132,7 @@ function renderTracker(){
   const filters = document.createElement("div");
   filters.className = "trackerFilters";
   const leagues = Array.from(new Set(arr.map(x=>x.league).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
+  const markets = Array.from(new Set(arr.map(x=>x.market||x.pick).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
   filters.innerHTML = `
     <div class="tfRow">
       <select id="tfStatus" class="tfSel">
@@ -1016,17 +1142,23 @@ function renderTracker(){
         <option value="lost">Lost</option>
         <option value="void">Void</option>
       </select>
+      <select id="tfMarket" class="tfSel">
+        <option value="all">All markets</option>
+        ${markets.map(m=>`<option value="${m.replace(/"/g,'&quot;')}">${m}</option>`).join('')}
+      </select>
+    </div>
+    <div class="tfRow">
       <select id="tfRange" class="tfSel">
         <option value="all">All time</option>
         <option value="today">Today</option>
         <option value="7d">Last 7 days</option>
       </select>
-    </div>
-    <div class="tfRow">
       <select id="tfLeague" class="tfSel">
         <option value="all">All leagues</option>
         ${leagues.map(l=>`<option value="${l.replace(/"/g,'&quot;')}">${l}</option>`).join('')}
       </select>
+    </div>
+    <div class="tfRow">
       <input id="tfQ" class="tfQ" placeholder="Search team/league…" value="${(f.q||'').replace(/"/g,'&quot;')}">
     </div>
   `;
@@ -1079,9 +1211,11 @@ header.appendChild(chartWrap);
       const f = state.trackerFilter || loadTrackerFilter();
       const setSel = (id, val)=>{ const el=$(id); if(el) el.value = val; };
       setSel('tfStatus', f.status||'all');
+      setSel('tfMarket', f.market||'all');
       setSel('tfRange', f.range||'all');
       setSel('tfLeague', f.league||'all');
       $("tfStatus").addEventListener('change', ()=>{ f.status=$("tfStatus").value; saveTrackerFilter(f); renderTracker(); });
+      $("tfMarket").addEventListener('change', ()=>{ f.market=$("tfMarket").value; saveTrackerFilter(f); renderTracker(); });
       $("tfRange").addEventListener('change', ()=>{ f.range=$("tfRange").value; saveTrackerFilter(f); renderTracker(); });
       $("tfLeague").addEventListener('change', ()=>{ f.league=$("tfLeague").value; saveTrackerFilter(f); renderTracker(); });
       let qT;
@@ -1090,16 +1224,36 @@ header.appendChild(chartWrap);
 
   }catch(e){}
 
-  // draw chart
+  // draw charts
   try{
-    const decided = arr
+    const decidedAll = arr
       .filter(x=>x.status==="won" || x.status==="lost" || x.status==="void")
       .slice()
       .sort((a,b)=>(a.updatedAt||a.createdAt||0)-(b.updatedAt||b.createdAt||0));
-    let brv = br.start;
-    const pts = [brv];
-    decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); });
-    drawBankrollChart($("brChart"), pts);
+
+    const series = (decided, startVal)=>{
+      let brv = startVal;
+      const pts = [brv];
+      const labs = ["Start"];
+      decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); labs.push(fmtBankrollLabel(t)); });
+      return {pts, labs};
+    };
+
+    // Total bankroll (starting bankroll + all markets)
+    const sAll = series(decidedAll, br.start);
+    drawBankrollChart($("brChart"), sAll.pts, sAll.labs, { color: "rgba(34,197,94,.95)" });
+
+    // Market-specific bankroll curves (starting bankroll + only that market)
+    const keyO25 = marketKey("Over 2.5");
+    const keyBTTS = marketKey("BTTS Yes");
+    const decidedO25 = decidedAll.filter(x=> marketKey(x.market)===keyO25);
+    const decidedBTTS = decidedAll.filter(x=> marketKey(x.market)===keyBTTS);
+
+    const sO25 = series(decidedO25, br.start);
+    const sBTTS = series(decidedBTTS, br.start);
+
+    drawBankrollChart($("brChartO25"), sO25.pts, sO25.labs, { color: "rgba(59,130,246,.95)" });
+    drawBankrollChart($("brChartBTTS"), sBTTS.pts, sBTTS.labs, { color: "rgba(168,85,247,.95)" });
   }catch(e){}
 
   // league charts
@@ -1217,10 +1371,17 @@ function resetFilters(){
   render();
 }
 
+const VIEW_KEY = "top_daily_tips_view_mode"; // "compact" | "wide"
+
 function setCompact(on){
-  state.compact = on;
-  document.body.classList.toggle("compact", on);
-  $("viewBtn").textContent = on ? "Wide" : "Compact";
+  state.compact = !!on;
+  document.body.classList.toggle("compact", !!on);
+  const vb = $("viewBtn");
+  if(vb){
+    vb.textContent = on ? "Wide" : "Compact";
+    vb.title = on ? "Switch to Wide view" : "Switch to Compact view";
+  }
+  try{ localStorage.setItem(VIEW_KEY, on ? "compact" : "wide"); }catch(e){}
   render();
 }
 
@@ -1237,7 +1398,24 @@ async function init(){
   $("closeDlg").addEventListener("click", ()=> $("details").close());
   $("details").addEventListener("click",(e)=>{ const rect=$("details").getBoundingClientRect(); const inDialog = rect.top<=e.clientY && e.clientY<=rect.bottom && rect.left<=e.clientX && e.clientX<=rect.right; if(!inDialog) $("details").close(); });
 
-  setCompact(window.matchMedia("(max-width: 640px)").matches);
+  // View mode: remember user choice; default to compact on phones
+  let savedMode = null;
+  try{ savedMode = localStorage.getItem(VIEW_KEY); }catch(e){}
+  if(savedMode === "compact" || savedMode === "wide"){
+    setCompact(savedMode === "compact");
+  }else{
+    setCompact(window.matchMedia("(max-width: 640px)").matches);
+  }
+
+  // If user hasn't chosen, follow screen changes
+  try{
+    const mq = window.matchMedia("(max-width: 640px)");
+    mq.addEventListener?.("change", ()=>{
+      let saved2=null; try{ saved2=localStorage.getItem(VIEW_KEY);}catch(e){}
+      if(saved2 === "compact" || saved2 === "wide") return;
+      setCompact(mq.matches);
+    });
+  }catch(e){}
   loadDataset(state.datasets[0]?.slug);
 }
 init();
@@ -1323,6 +1501,7 @@ function filterTracker(arr, f){
   const market = (f && f.market) ? f.market : "all";
   const tab = (f && f.tab) ? f.tab : "all"; // all | singles | accas
   const q = (f && f.q) ? f.q : "";
+  const league = (f && f.league) ? f.league : "all";
 
   // Date range: prefer explicit from/to; fall back to legacy "range"
   const from = (f && f.from) ? f.from : "";
@@ -1348,6 +1527,7 @@ function filterTracker(arr, f){
     if(tab==="singles" && t.type!=="single") return false;
     if(tab==="accas" && t.type!=="acca") return false;
     if(market!=="all" && (t.market||t.pick||"")!==market) return false;
+    if(league!=="all" && (t.league||"")!==league) return false;
     if(!inFromTo(t)){
       // If no explicit from/to are set, fall back to legacy range.
       if(!(from||to) && !inRange(t, legacyRange)) return false;

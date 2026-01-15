@@ -1,19 +1,12 @@
+TOP DAILY TIPS – RESTORE + TRACKER MARKET CHARTS
 
-TOP DAILY TIPS – RESTORE FIX
+Fixes:
+- Restores Tracker bankroll charts for Over 2.5 and BTTS (separate charts) + Total bankroll chart.
+- Keeps the main dashboards (Over 2.5 / BTTS / Over 1.5 / Accas) at the normal size you had.
+- Keeps tracker mobile fitting fix.
 
-This zip is a clean restore package.
-If your app went blank, it means app.js had a syntax error.
-
-HOW TO USE:
-1) Download this zip
-2) Extract it
-3) Replace your repo files with the extracted ones
-4) Commit & redeploy on Netlify
-
-If you still want:
-- CSV import
-- Tracker compact layout
-- Market filters
-- Separate bankroll charts
-
-Tell me and I will layer them back safely one by one.
+Install:
+1) Download zip, extract
+2) Replace the files in your GitHub repo with these files
+3) Commit & push
+4) Netlify: Trigger deploy → Clear cache and deploy (recommended)

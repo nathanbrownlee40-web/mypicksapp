@@ -491,24 +491,6 @@ body.trackerView #tableWrap{ display:none !important; }
 
 canvas{ image-rendering:auto; }
 
-/* ------------------------------
-   Tracker: mobile fit (ONLY tracker)
-   ------------------------------ */
-@media (max-width: 640px){
-  /* prevent sideways scroll only in Tracker view */
-  body.trackerView{ overflow-x: hidden; }
 
-  /* slightly tighter page padding only in Tracker */
-  body.trackerView .container{ padding: 0 10px; }
-
-  /* stack tracker blocks and keep them inside screen */
-  body.trackerView .trackerHeader{ grid-template-columns: 1fr; }
-  body.trackerView .trackerStats{ grid-template-columns: 1fr !important; gap: 6px; padding: 10px; }
-  body.trackerView .trackerBankroll,
-  body.trackerView .trackerFilters,
-  body.trackerView .trackerChart{ padding: 10px; }
-
-  /* charts: fit screen */
-  body.trackerView canvas{ max-width: 100% !important; }
-  body.trackerView .trackerChart canvas{ width: 100% !important; height: 170px !important; }
-}
+/* Prevent sideways scroll */
+body{overflow-x:hidden;}
