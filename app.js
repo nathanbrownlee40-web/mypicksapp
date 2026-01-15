@@ -1077,27 +1077,15 @@ function renderTracker(){
     <div class="tsMetric">
       <span>Win rate</span>
       <b>${st.winp}%</b>
-      <div class="tsSubMetric">Avg odds (W+L): <b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
+      <div class="tsSubMetric">Avg Odds: <b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
     </div>
   </div>
 
   <table class="tsTable" role="table">
-    <tr>
-      <td>Won</td><td><b>${st.won}</b></td>
-      <td>Avg odds (W)</td><td><b>${fin.avgOddsWon ? fin.avgOddsWon.toFixed(2) : "—"}</b></td>
-    </tr>
-    <tr>
-      <td>Lost</td><td><b>${st.lost}</b></td>
-      <td>Avg odds (L)</td><td><b>${fin.avgOddsLost ? fin.avgOddsLost.toFixed(2) : "—"}</b></td>
-    </tr>
-    <tr>
-      <td>Pending</td><td><b>${st.pending}</b></td>
-      <td></td><td></td>
-    </tr>
-    <tr>
-      <td>Void</td><td><b>${st.voided}</b></td>
-      <td></td><td></td>
-    </tr>
+    <tr><td>Won</td><td><b>${st.won}</b></td></tr>
+    <tr><td>Lost</td><td><b>${st.lost}</b></td></tr>
+    <tr><td>Pending</td><td><b>${st.pending}</b></td></tr>
+    <tr><td>Void</td><td><b>${st.voided}</b></td></tr>
   </table>
 `;
 

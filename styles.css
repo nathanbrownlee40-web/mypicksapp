@@ -610,3 +610,40 @@ body{overflow-x:hidden;}
     overflow-x: hidden;
   }
 }
+
+
+/* --- Tracker mobile tidy (tracker only) --- */
+@media (max-width: 640px){
+  body.trackerView .trackerStats{ padding: 14px; }
+  body.trackerView .tsSummary{
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+  }
+  body.trackerView .tsMetric{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    line-height: 1.1;
+  }
+  body.trackerView .tsMetric span{ font-size: 11px; }
+  body.trackerView .tsMetric b{ font-size: 13px; }
+  body.trackerView .tsSubMetric{
+    margin-top: 2px;
+    font-size: 11px;
+    opacity: .9;
+  }
+  body.trackerView .tsSubMetric b{ font-size: 12px; }
+
+  /* Make the small table fit phones */
+  body.trackerView .tsTable{
+    margin-top: 10px;
+    table-layout: auto;
+  }
+  body.trackerView .tsTable td{
+    padding: 6px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  body.trackerView .tsTable td:first-child{ opacity: .75; }
+}
