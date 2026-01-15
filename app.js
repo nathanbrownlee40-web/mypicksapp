@@ -1529,3 +1529,5 @@ function filterTracker(arr, f){
     return true;
   });
 }
+
+console.log('Charts v2.1 mobile fix');

@@ -647,3 +647,5 @@ body{overflow-x:hidden;}
   }
   body.trackerView .tsTable td:first-child{ opacity: .75; }
 }
+
+canvas{image-rendering:crisp-edges;image-rendering:pixelated;}
