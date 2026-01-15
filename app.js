@@ -1088,11 +1088,11 @@ function renderTracker(){
     </tr>
     <tr>
       <td>Pending</td><td><b>${st.pending}</b></td>
-      <td>Avg odds (All)</td><td><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></td>
+      <td></td><td></td>
     </tr>
     <tr>
       <td>Void</td><td><b>${st.voided}</b></td>
-      <td></td><td></td>
+      <td>Avg odds (W+L)</td><td><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></td>
     </tr>
   </table>
 `;

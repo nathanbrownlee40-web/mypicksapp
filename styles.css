@@ -190,6 +190,12 @@ body.compact .cardList{display:block}
 @media (max-width: 640px){
   .kv{grid-template-columns: 1fr; gap: 6px}
 }
+
+@media (max-width: 640px){
+  body.trackerView .tsMetric span{ font-size: 11px; }
+  body.trackerView .tsMetric b{ font-size: 13px; }
+  body.trackerView .tsTable td{ padding: 6px 8px; font-size: 12px; }
+}
 .k{color: var(--muted); font-size:12px}
 .v{font-size: 14px}
 
@@ -281,6 +287,42 @@ body.trackerView #tableWrap{ display:none !important; }
   border-radius: 16px;
   background: rgba(255,255,255,.04);
 }
+
+/* Tracker stats (mobile + desktop) */
+.tsSummary{ display:grid; gap:6px; }
+.tsMetric{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  line-height:1.15;
+  padding: 2px 0;
+}
+.tsMetric span{ font-size: 12px; opacity: .75; }
+.tsMetric b{ font-size: 14px; letter-spacing: .2px; }
+
+.tsTable{
+  width:100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  table-layout: fixed;
+}
+.tsTable td{
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  font-size: 13px;
+}
+.tsTable td:nth-child(2),
+.tsTable td:nth-child(4){
+  text-align:right;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.tsTable td:nth-child(1),
+.tsTable td:nth-child(3){
+  opacity:.85;
+  white-space: nowrap;
+}
 .tsRow{
   display:flex;
   align-items:baseline;
@@ -354,6 +396,12 @@ body.trackerView #tableWrap{ display:none !important; }
 @media (min-width: 520px){
   .trackerHeader{ grid-template-columns: 1fr 1fr; }
   .trackerChart{ grid-column: 1 / -1; }
+}
+
+@media (max-width: 420px){
+  .tsMetric span{ font-size: 11px; }
+  .tsMetric b{ font-size: 13px; }
+  .tsTable td{ padding: 7px 8px; font-size: 12px; }
 }
 
 .trackerFilters{
