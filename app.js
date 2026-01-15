@@ -1371,10 +1371,17 @@ function resetFilters(){
   render();
 }
 
+const VIEW_KEY = "top_daily_tips_view_mode"; // "compact" | "wide"
+
 function setCompact(on){
-  state.compact = on;
-  document.body.classList.toggle("compact", on);
-  $("viewBtn").textContent = on ? "Wide" : "Compact";
+  state.compact = !!on;
+  document.body.classList.toggle("compact", !!on);
+  const vb = $("viewBtn");
+  if(vb){
+    vb.textContent = on ? "Wide" : "Compact";
+    vb.title = on ? "Switch to Wide view" : "Switch to Compact view";
+  }
+  try{ localStorage.setItem(VIEW_KEY, on ? "compact" : "wide"); }catch(e){}
   render();
 }
 
@@ -1391,7 +1398,24 @@ async function init(){
   $("closeDlg").addEventListener("click", ()=> $("details").close());
   $("details").addEventListener("click",(e)=>{ const rect=$("details").getBoundingClientRect(); const inDialog = rect.top<=e.clientY && e.clientY<=rect.bottom && rect.left<=e.clientX && e.clientX<=rect.right; if(!inDialog) $("details").close(); });
 
-  setCompact(window.matchMedia("(max-width: 640px)").matches);
+  // View mode: remember user choice; default to compact on phones
+  let savedMode = null;
+  try{ savedMode = localStorage.getItem(VIEW_KEY); }catch(e){}
+  if(savedMode === "compact" || savedMode === "wide"){
+    setCompact(savedMode === "compact");
+  }else{
+    setCompact(window.matchMedia("(max-width: 640px)").matches);
+  }
+
+  // If user hasn't chosen, follow screen changes
+  try{
+    const mq = window.matchMedia("(max-width: 640px)");
+    mq.addEventListener?.("change", ()=>{
+      let saved2=null; try{ saved2=localStorage.getItem(VIEW_KEY);}catch(e){}
+      if(saved2 === "compact" || saved2 === "wide") return;
+      setCompact(mq.matches);
+    });
+  }catch(e){}
   loadDataset(state.datasets[0]?.slug);
 }
 init();
