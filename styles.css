@@ -20,11 +20,7 @@ body{
               radial-gradient(900px 500px at 90% 10%, #1b3a2e 0%, rgba(27,58,46,0) 55%),
               var(--bg);
   color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
 }
-
 .topbar{
   position: sticky; top: 0; z-index: 5;
   background: rgba(11,16,32,.75);
@@ -197,7 +193,7 @@ body.compact .cardList{display:block}
 
 @media (max-width: 640px){
   body.trackerView .tsMetric span{ font-size: 11px; }
-  body.trackerView .tsMetric b{ font-size: 13px; letter-spacing: .2px; }
+  body.trackerView .tsMetric b{ font-size: 13px; }
   body.trackerView .tsTable td{ padding: 6px 8px; font-size: 12px; }
 }
 .k{color: var(--muted); font-size:12px}
@@ -549,7 +545,7 @@ body.trackerView #tableWrap{ display:none !important; }
 }
 .trackSectionTitle{ margin-top: 18px; }
 
-canvas{ image-rendering:auto; display:block; }
+canvas{ image-rendering:auto; }
 
 
 /* Prevent sideways scroll */
@@ -631,10 +627,9 @@ body{overflow-x:hidden;}
     line-height: 1.1;
   }
   body.trackerView .tsMetric span{ font-size: 11px; }
-  body.trackerView .tsMetric b{ font-size: 13px; letter-spacing: .2px; }
+  body.trackerView .tsMetric b{ font-size: 13px; }
   body.trackerView .tsSubMetric{
-    margin-top: 4px;
-    line-height: 1.25;
+    margin-top: 2px;
     font-size: 11px;
     opacity: .9;
   }

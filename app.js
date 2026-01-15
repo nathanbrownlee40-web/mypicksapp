@@ -235,8 +235,6 @@ function drawBankrollChart(canvas, points, labels, opts={}){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 
   ctx.clearRect(0,0,cssW,cssH);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
 
   if(!points || points.length < 2){
     ctx.globalAlpha = 0.8;
@@ -287,7 +285,7 @@ function drawBankrollChart(canvas, points, labels, opts={}){
   ctx.lineWidth = 3;
   ctx.strokeStyle = color;
   ctx.shadowColor = shadowColor;
-  ctx.shadowBlur = 6;
+  ctx.shadowBlur = 10;
 
   ctx.beginPath();
   for(let i=0;i<points.length;i++){
@@ -1079,7 +1077,7 @@ function renderTracker(){
     <div class="tsMetric">
       <span>Win rate</span>
       <b>${st.winp}%</b>
-      <div class="tsSubMetric">Avg Odds <b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
+      <div class="tsSubMetric">Avg Odds: <b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
     </div>
   </div>
 
