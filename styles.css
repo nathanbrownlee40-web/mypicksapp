@@ -494,3 +494,63 @@ canvas{ image-rendering:auto; }
 
 /* Prevent sideways scroll */
 body{overflow-x:hidden;}
+
+/* ===== Tracker: mobile fit (prevents horizontal overflow) ===== */
+@media (max-width: 520px){
+  body.trackerView{
+    overflow-x: hidden;
+  }
+  body.trackerView .container{
+    max-width: 100%;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* Stack tracker sections so nothing forces width */
+  body.trackerView .trackerHeader{
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+  body.trackerView .trackerStats,
+  body.trackerView .trackerBankroll,
+  body.trackerView .trackerFilters,
+  body.trackerView .trackerChart,
+  body.trackerView .trackerLeagueCharts{
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Tracker stats table: make it wrap instead of widening the page */
+  body.trackerView .tsTable{
+    width: 100%;
+    table-layout: fixed;
+  }
+  body.trackerView .tsTable td{
+    padding: 6px 6px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  /* Charts: always fit screen */
+  body.trackerView canvas{
+    max-width: 100% !important;
+  }
+  body.trackerView .trackerChart canvas{
+    width: 100% !important;
+    height: 180px !important;
+  }
+
+  /* Slightly tighter chart cards */
+  body.trackerView .trackerChart,
+  body.trackerView .trackerLeagueCharts{
+    padding: 10px;
+  }
+
+  /* Hide any accidental horizontal scrollbar from card list */
+  body.trackerView .cardList,
+  body.trackerView .tableScroll{
+    overflow-x: hidden;
+  }
+}
