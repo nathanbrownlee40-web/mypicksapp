@@ -274,12 +274,12 @@ body.trackerView #tableWrap{ display:none !important; }
 }
 .trackerStats{
   display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
-  padding: 12px;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .tsRow{
   display:flex;
@@ -337,10 +337,10 @@ body.trackerView #tableWrap{ display:none !important; }
 }
 
 .trackerBankroll{
-  padding: 12px;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .tbLabel{ font-size: 12px; opacity: .85; display:block; margin-bottom:6px; }
 .tbRow{ display:flex; gap:8px; align-items:center; }
@@ -368,10 +368,10 @@ body.trackerView #tableWrap{ display:none !important; }
 .tbHint{ margin-top:8px; opacity:.9; font-size: 13px; }
 
 .trackerChart{
-  padding: 12px;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .tcTitle{ font-weight: 800; margin-bottom: 8px; opacity:.95; }
 
@@ -402,10 +402,10 @@ body.trackerView #tableWrap{ display:none !important; }
 }
 
 .trackerFilters{
-  padding: 12px;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  background: rgba(255,255,255,.04);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .tfRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .tfSel{
@@ -508,10 +508,10 @@ body.trackerView #tableWrap{ display:none !important; }
 
 /* League charts (neon on dark) */
 .trackerLeagueCharts{
-  padding: 12px;
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  background: rgba(0,0,0,.22);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 .lcGrid{
   display:grid;
@@ -564,4 +564,21 @@ canvas{ image-rendering:auto; }
   width: 100%;
   height: 140px;
   display:block;
+}
+
+/* Tracker flat blocks */
+.trackerBlock{
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  background: rgba(255,255,255,.03);
+}
+
+/* Make charts readable on dark background */
+.trackerChart canvas{
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.12);
 }

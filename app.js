@@ -63,7 +63,7 @@ function loadTrackerFilter(){
     const v = raw ? JSON.parse(raw) : null;
     if(v && typeof v === "object") return v;
   }catch(e){}
-  return { status: "all", range: "all", league: "all", q: "" };
+  return { status: "all", market: "all", range: "all", league: "all", q: "" };
 }
 function saveTrackerFilter(obj){
   try{ localStorage.setItem(TRACKER_FILTER_KEY, JSON.stringify(obj)); }catch(e){}
@@ -1120,10 +1120,10 @@ function renderTracker(){
     <div class="tcSub">Total</div>
     <canvas id="brChart" width="320" height="120"></canvas>
 
-    <div class="tcSub" style="margin-top:10px;">Over 2.5 (profit)</div>
+    <div class="tcSub" style="margin-top:10px;">Over 2.5</div>
     <canvas id="brChartO25" width="320" height="120"></canvas>
 
-    <div class="tcSub" style="margin-top:10px;">BTTS Yes (profit)</div>
+    <div class="tcSub" style="margin-top:10px;">BTTS Yes</div>
     <canvas id="brChartBTTS" width="320" height="120"></canvas>
   `;
 
@@ -1132,6 +1132,7 @@ function renderTracker(){
   const filters = document.createElement("div");
   filters.className = "trackerFilters";
   const leagues = Array.from(new Set(arr.map(x=>x.league).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
+  const markets = Array.from(new Set(arr.map(x=>x.market||x.pick).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b)));
   filters.innerHTML = `
     <div class="tfRow">
       <select id="tfStatus" class="tfSel">
@@ -1141,17 +1142,23 @@ function renderTracker(){
         <option value="lost">Lost</option>
         <option value="void">Void</option>
       </select>
+      <select id="tfMarket" class="tfSel">
+        <option value="all">All markets</option>
+        ${markets.map(m=>`<option value="${m.replace(/"/g,'&quot;')}">${m}</option>`).join('')}
+      </select>
+    </div>
+    <div class="tfRow">
       <select id="tfRange" class="tfSel">
         <option value="all">All time</option>
         <option value="today">Today</option>
         <option value="7d">Last 7 days</option>
       </select>
-    </div>
-    <div class="tfRow">
       <select id="tfLeague" class="tfSel">
         <option value="all">All leagues</option>
         ${leagues.map(l=>`<option value="${l.replace(/"/g,'&quot;')}">${l}</option>`).join('')}
       </select>
+    </div>
+    <div class="tfRow">
       <input id="tfQ" class="tfQ" placeholder="Search team/league…" value="${(f.q||'').replace(/"/g,'&quot;')}">
     </div>
   `;
@@ -1204,9 +1211,11 @@ header.appendChild(chartWrap);
       const f = state.trackerFilter || loadTrackerFilter();
       const setSel = (id, val)=>{ const el=$(id); if(el) el.value = val; };
       setSel('tfStatus', f.status||'all');
+      setSel('tfMarket', f.market||'all');
       setSel('tfRange', f.range||'all');
       setSel('tfLeague', f.league||'all');
       $("tfStatus").addEventListener('change', ()=>{ f.status=$("tfStatus").value; saveTrackerFilter(f); renderTracker(); });
+      $("tfMarket").addEventListener('change', ()=>{ f.market=$("tfMarket").value; saveTrackerFilter(f); renderTracker(); });
       $("tfRange").addEventListener('change', ()=>{ f.range=$("tfRange").value; saveTrackerFilter(f); renderTracker(); });
       $("tfLeague").addEventListener('change', ()=>{ f.league=$("tfLeague").value; saveTrackerFilter(f); renderTracker(); });
       let qT;
@@ -1234,14 +1243,14 @@ header.appendChild(chartWrap);
     const sAll = series(decidedAll, br.start);
     drawBankrollChart($("brChart"), sAll.pts, sAll.labs, { color: "rgba(34,197,94,.95)" });
 
-    // Market-specific profit curves (start at 0)
+    // Market-specific bankroll curves (starting bankroll + only that market)
     const keyO25 = marketKey("Over 2.5");
     const keyBTTS = marketKey("BTTS Yes");
     const decidedO25 = decidedAll.filter(x=> marketKey(x.market)===keyO25);
     const decidedBTTS = decidedAll.filter(x=> marketKey(x.market)===keyBTTS);
 
-    const sO25 = series(decidedO25, 0);
-    const sBTTS = series(decidedBTTS, 0);
+    const sO25 = series(decidedO25, br.start);
+    const sBTTS = series(decidedBTTS, br.start);
 
     drawBankrollChart($("brChartO25"), sO25.pts, sO25.labs, { color: "rgba(59,130,246,.95)" });
     drawBankrollChart($("brChartBTTS"), sBTTS.pts, sBTTS.labs, { color: "rgba(168,85,247,.95)" });
@@ -1468,6 +1477,7 @@ function filterTracker(arr, f){
   const market = (f && f.market) ? f.market : "all";
   const tab = (f && f.tab) ? f.tab : "all"; // all | singles | accas
   const q = (f && f.q) ? f.q : "";
+  const league = (f && f.league) ? f.league : "all";
 
   // Date range: prefer explicit from/to; fall back to legacy "range"
   const from = (f && f.from) ? f.from : "";
@@ -1493,6 +1503,7 @@ function filterTracker(arr, f){
     if(tab==="singles" && t.type!=="single") return false;
     if(tab==="accas" && t.type!=="acca") return false;
     if(market!=="all" && (t.market||t.pick||"")!==market) return false;
+    if(league!=="all" && (t.league||"")!==league) return false;
     if(!inFromTo(t)){
       // If no explicit from/to are set, fall back to legacy range.
       if(!(from||to) && !inRange(t, legacyRange)) return false;
