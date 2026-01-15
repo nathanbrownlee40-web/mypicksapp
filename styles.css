@@ -629,3 +629,35 @@ canvas{ image-rendering:auto; }
     height: 170px !important;
   }
 }
+/* Tracker summary – mobile compact */
+.trackerSummaryCompact{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:12px;
+}
+
+.trackerSummaryCompact span{
+  font-size:11px;
+  opacity:.7;
+}
+
+.trackerSummaryCompact b{
+  font-size:15px;
+}
+
+.trackerSummaryCompact .tsTop{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.trackerSummaryCompact .tsBottom{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:8px;
+  font-size:12px;
+  text-align:center;
+}
+
