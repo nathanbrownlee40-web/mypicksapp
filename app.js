@@ -219,7 +219,7 @@ function fmtBankrollLabel(t){
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function drawBankrollChart(canvas, points, labels){
+function drawBankrollChart(canvas, points, labels, opts={}){
   if(!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
   const w = canvas.width, h = canvas.height;
@@ -247,6 +247,9 @@ function drawBankrollChart(canvas, points, labels){
 
   // Normalize labels
   const labs = Array.isArray(labels) && labels.length === points.length ? labels : points.map((_,i)=> String(i));
+  const color = opts.color || "rgba(34,197,94,.95)";
+  const shadowColor = opts.shadowColor || color.replace(/rgba\(([^)]+),\s*([0-9.]+)\)/, "rgba($1,0.35)");
+  const valueFn = (typeof opts.valueFn === "function") ? opts.valueFn : money;
 
   const min = Math.min(...points);
   const max = Math.max(...points);
@@ -272,7 +275,7 @@ function drawBankrollChart(canvas, points, labels){
   const yVals = [max, (max+min)/2, min];
   yVals.forEach((v, idx)=>{
     const y = padT + idx*((cssH-padT-padB)/2);
-    ctx.fillText(money(v), 6, y+4);
+    ctx.fillText(valueFn(v), 6, y+4);
   });
 
   // line
@@ -280,8 +283,8 @@ function drawBankrollChart(canvas, points, labels){
   const yScale = (cssH-padT-padB) / rng;
 
   ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(34,197,94,.95)"; // bright green
-  ctx.shadowColor = "rgba(34,197,94,.35)";
+  ctx.strokeStyle = color;
+  ctx.shadowColor = shadowColor;
   ctx.shadowBlur = 10;
 
   ctx.beginPath();
@@ -294,7 +297,7 @@ function drawBankrollChart(canvas, points, labels){
 
   // points
   ctx.shadowBlur = 0;
-  ctx.fillStyle = "rgba(34,197,94,.95)";
+  ctx.fillStyle = color;
   for(let i=0;i<points.length;i++){
     const x = padL + i*xStep;
     const y = padT + (max-points[i]) * yScale;
@@ -320,7 +323,7 @@ function drawBankrollChart(canvas, points, labels){
   const last = points[points.length-1];
   ctx.fillStyle = "rgba(255,255,255,.90)";
   ctx.font = "12px ui-sans-serif, system-ui";
-  ctx.fillText(money(last), cssW-padR-70, padT+10);
+  ctx.fillText(valueFn(last), cssW-padR-70, padT+10);
 }
 
 function betProfit(t){
@@ -1067,24 +1070,31 @@ function renderTracker(){
   const stats = document.createElement("div");
   stats.className = "trackerStats";
   stats.innerHTML = `
-  <div class="tsRow"><span>Total</span><b>${st.total}</b></div>
-
-  <div class="tsMini">
-    <div class="r"><span>Won</span><b>${st.won}</b></div>
-    <div class="r"><span>Lost</span><b>${st.lost}</b></div>
-    <div class="r"><span>Pending</span><b>${st.pending}</b></div>
-    <div class="r"><span>Void</span><b>${st.voided}</b></div>
-    <div class="r"><span>Win rate</span><b>${st.winp}%</b></div>
+  <div class="tsSummary">
+    <div class="tsMetric"><span>Total</span><b>${st.total}</b></div>
+    <div class="tsMetric"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
+    <div class="tsMetric"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
+    <div class="tsMetric"><span>Win rate</span><b>${st.winp}%</b></div>
   </div>
 
-  <div class="tsRow"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
-  <div class="tsRow"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
-
-  <div class="tsMini">
-    <div class="r"><span>Avg odds (W)</span><b>${fin.avgOddsWon ? fin.avgOddsWon.toFixed(2) : "—"}</b></div>
-    <div class="r"><span>Avg odds (L)</span><b>${fin.avgOddsLost ? fin.avgOddsLost.toFixed(2) : "—"}</b></div>
-    <div class="r"><span>Avg odds (All)</span><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
-  </div>
+  <table class="tsTable" role="table">
+    <tr>
+      <td>Won</td><td><b>${st.won}</b></td>
+      <td>Avg odds (W)</td><td><b>${fin.avgOddsWon ? fin.avgOddsWon.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Lost</td><td><b>${st.lost}</b></td>
+      <td>Avg odds (L)</td><td><b>${fin.avgOddsLost ? fin.avgOddsLost.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Pending</td><td><b>${st.pending}</b></td>
+      <td>Avg odds (All)</td><td><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></td>
+    </tr>
+    <tr>
+      <td>Void</td><td><b>${st.voided}</b></td>
+      <td></td><td></td>
+    </tr>
+  </table>
 `;
 
   const bankroll = document.createElement("div");
@@ -1106,8 +1116,15 @@ function renderTracker(){
   const chartWrap = document.createElement("div");
   chartWrap.className = "trackerChart";
   chartWrap.innerHTML = `
-    <div class="tcTitle">Bankroll chart</div>
+    <div class="tcTitle">Bankroll</div>
+    <div class="tcSub">Total</div>
     <canvas id="brChart" width="320" height="120"></canvas>
+
+    <div class="tcSub" style="margin-top:10px;">Over 2.5 (profit)</div>
+    <canvas id="brChartO25" width="320" height="120"></canvas>
+
+    <div class="tcSub" style="margin-top:10px;">BTTS Yes (profit)</div>
+    <canvas id="brChartBTTS" width="320" height="120"></canvas>
   `;
 
   const f = loadTrackerFilter();
@@ -1198,17 +1215,36 @@ header.appendChild(chartWrap);
 
   }catch(e){}
 
-  // draw chart
+  // draw charts
   try{
-    const decided = arr
+    const decidedAll = arr
       .filter(x=>x.status==="won" || x.status==="lost" || x.status==="void")
       .slice()
       .sort((a,b)=>(a.updatedAt||a.createdAt||0)-(b.updatedAt||b.createdAt||0));
-    let brv = br.start;
-    const pts = [brv];
-    const labs = ["Start"];
-    decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); labs.push(fmtBankrollLabel(t)); });
-    drawBankrollChart($("brChart"), pts, labs);
+
+    const series = (decided, startVal)=>{
+      let brv = startVal;
+      const pts = [brv];
+      const labs = ["Start"];
+      decided.forEach(t=>{ brv += betProfit(t); pts.push(brv); labs.push(fmtBankrollLabel(t)); });
+      return {pts, labs};
+    };
+
+    // Total bankroll (starting bankroll + all markets)
+    const sAll = series(decidedAll, br.start);
+    drawBankrollChart($("brChart"), sAll.pts, sAll.labs, { color: "rgba(34,197,94,.95)" });
+
+    // Market-specific profit curves (start at 0)
+    const keyO25 = marketKey("Over 2.5");
+    const keyBTTS = marketKey("BTTS Yes");
+    const decidedO25 = decidedAll.filter(x=> marketKey(x.market)===keyO25);
+    const decidedBTTS = decidedAll.filter(x=> marketKey(x.market)===keyBTTS);
+
+    const sO25 = series(decidedO25, 0);
+    const sBTTS = series(decidedBTTS, 0);
+
+    drawBankrollChart($("brChartO25"), sO25.pts, sO25.labs, { color: "rgba(59,130,246,.95)" });
+    drawBankrollChart($("brChartBTTS"), sBTTS.pts, sBTTS.labs, { color: "rgba(168,85,247,.95)" });
   }catch(e){}
 
   // league charts
