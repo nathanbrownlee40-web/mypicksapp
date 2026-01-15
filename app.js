@@ -1074,7 +1074,11 @@ function renderTracker(){
     <div class="tsMetric"><span>Total</span><b>${st.total}</b></div>
     <div class="tsMetric"><span>P/L</span><b>${(fin.profit>=0?"+":"") + money(fin.profit)}</b></div>
     <div class="tsMetric"><span>ROI</span><b>${(fin.roi*100).toFixed(1)}%</b></div>
-    <div class="tsMetric"><span>Win rate</span><b>${st.winp}%</b></div>
+    <div class="tsMetric">
+      <span>Win rate</span>
+      <b>${st.winp}%</b>
+      <div class="tsSubMetric">Avg odds (W+L): <b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></div>
+    </div>
   </div>
 
   <table class="tsTable" role="table">
@@ -1092,7 +1096,7 @@ function renderTracker(){
     </tr>
     <tr>
       <td>Void</td><td><b>${st.voided}</b></td>
-      <td>Avg odds (W+L)</td><td><b>${fin.avgOddsAll ? fin.avgOddsAll.toFixed(2) : "—"}</b></td>
+      <td></td><td></td>
     </tr>
   </table>
 `;

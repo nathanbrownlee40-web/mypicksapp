@@ -333,6 +333,14 @@ body.trackerView #tableWrap{ display:none !important; }
 }
 .tsRow b{ font-size: 15px; }
 
+/* Tracker summary: small sub-metric under Win rate */
+.tsSubMetric{
+  margin-top:6px;
+  font-size:11px;
+  opacity:.85;
+}
+.tsSubMetric b{ font-size:12px; }
+
 .trackerBankroll{
   padding: 12px;
   border:1px solid rgba(255,255,255,.14);
