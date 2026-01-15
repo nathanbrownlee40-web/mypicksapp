@@ -1,6 +1,6 @@
 {
-  "name": "Picks Dashboards",
-  "short_name": "Picks",
+  "name": "TOP DAILY TIPS",
+  "short_name": "TOP TIPS",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b1020",
